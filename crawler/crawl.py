@@ -1,5 +1,5 @@
 from html.parser import HTMLParser  
-from urllib.request import urlopen  
+from urllib.request import urlopen 
 from urllib import parse
 
 # We are going to create a class called LinkParser that inherits some
@@ -28,19 +28,21 @@ class LinkParser(HTMLParser):
 
     # This is a new function that we are creating to get links
     # that our spider() function will call
-    def getLinks(self, url): 
+    def getLinks(self, url):
         self.links = []
         # Remember the base URL which will be important when creating
         # absolute URLs
         self.baseUrl = url
-        print(url)
+        #print("sda",self.baseUrl)
         # Use the urlopen function from the standard Python 3 library
         response = urlopen(url)  
         # Make sure that we are looking at HTML and not other things that
         # are floating around on the internet (such as
         # JavaScript files, CSS, or .PDFs for example)
-        if response.getheader('Content-Type')=='text/html':
-            print("true")
+        
+        print(response.getheader('Content-Type'))
+        if response.getheader('Content-Type')=='text/html; charset=UTF-8' or response.getheader('Content-Type')=='text/html':
+            print("if part")
             htmlBytes = response.read()
             # Note that feed() handles Strings well, but not bytes
             # (A change from Python 2.x to Python 3.x)
@@ -48,6 +50,7 @@ class LinkParser(HTMLParser):
             self.feed(htmlString)
             return htmlString, self.links
         else:
+            print("else part")
             return "",[]
 
 # And finally here is our spider. It takes in an URL, a word to find,
@@ -62,7 +65,7 @@ def spider(url, word, maxPages):
     # (this is useful for searching for the word)
     # and we return a set of links from that web page
     # (this is useful for where to go next)
-    while numberVisited < maxPages and pagesToVisit != [] and not foundWord:
+    while numberVisited < maxPages and pagesToVisit != []:# and not foundWord:
         numberVisited = numberVisited +1
         # Start from the beginning of our collection of pages to visit:
         url = pagesToVisit[0]
@@ -72,15 +75,15 @@ def spider(url, word, maxPages):
             parser = LinkParser()
             data, links = parser.getLinks(url)
             print("data",data)
-            print("links",links)
+            # print("links",links)
             if data.find(word)>-1:
                 foundWord = True
                 # Add the pages that we visited to the end of our collection
                 # of pages to visit:
                 pagesToVisit = pagesToVisit + links
                 print(" **Success!**")
-            # else:
-            #     pagesToVisit=pagesToVisit+links
+            else:
+                 pagesToVisit=pagesToVisit+links
         except:
             print(" **Failed!**")
     if foundWord:
@@ -89,4 +92,4 @@ def spider(url, word, maxPages):
         print("Word never found")
 
 
-spider("http://www.cprogramming.com/snippets/",'sort',100)
+spider("http://www.cprogramming.com/snippets/source-code/templated-stack-class",'include',1)
