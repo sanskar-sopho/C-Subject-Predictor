@@ -41,7 +41,10 @@ class LinkParser(HTMLParser):
         # JavaScript files, CSS, or .PDFs for example)
         
         print(response.getheader('Content-Type'))
-        if response.getheader('Content-Type')=='text/html; charset=UTF-8' or response.getheader('Content-Type')=='text/html':
+        Contenttype=response.getheader('Content-Type')
+        Contenttype=Contenttype[:9]
+        # print("Contenttype=",Contenttype)
+        if Contenttype=='text/html':
             print("if part")
             htmlBytes = response.read()
             # Note that feed() handles Strings well, but not bytes
@@ -92,4 +95,4 @@ def spider(url, word, maxPages):
         print("Word never found")
 
 
-spider("http://www.cprogramming.com/snippets/source-code/templated-stack-class",'include',1)
+spider("http://www.cprogramming.com/snippets/source-code/templated-stack-class",'include',100)
