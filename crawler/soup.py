@@ -16,4 +16,4 @@ rows=my_table.findChildren(['th','tr'])
 for row in rows:
 	cells=row.findChildren('td')
 	span=cells[1].findChildren('span')
-	
+	print(span)
