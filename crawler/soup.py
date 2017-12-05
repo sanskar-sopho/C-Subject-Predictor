@@ -9,17 +9,22 @@ soup=BeautifulSoup(page,'xml')
 # for row in soup.find(class_="repository-content").find_all("tr"):
 # 	print(row,'\n')
 
+
+file=open("code.txt",'w')
 tables=soup.findChildren('table')
 # print(tables)
 my_table=tables[0]
 rows=my_table.findChildren(['th','tr'])
+i=0
 for row in rows:
-	cells=row.findChildren('td')
-	for cell in cells:		
-		for string in cell.stripped_strings:
-			string=str(unicode(string))
-			print(repr(string))
-
+	print(i)
+	i+=1
+	for string in row.stripped_strings:
+		string=str(unicode(string))
+		print(string)
+		file.write(string)
+		file.write(' ')
 		# spans=cells[1].findChildren('span')
 		# for span in spans:
 			# print(span.string)
+	file.write('\n')
