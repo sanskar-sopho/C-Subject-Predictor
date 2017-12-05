@@ -1,7 +1,7 @@
 from bs4 import BeautifulSoup
 import urllib2
 
-url="https://github.com/sanskar-sopho/Cat-Dog_classifier/blob/master/cat_dog.py"
+url="https://github.com/kimiyoung/ssl_bad_gan/blob/master/cifar_trainer.py"
 page=urllib2.urlopen(url)
 
 soup=BeautifulSoup(page,'xml')	

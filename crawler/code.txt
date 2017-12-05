@@ -1,113 +1,299 @@
-import tensorflow as tf 
-import cv2 
+
+import torch 
+import torch.nn as nn 
+import torch.optim as optim 
+import torch.nn.functional as F 
+from torch.autograd import Variable 
+import torchvision.utils as vutils 
+
+import data 
+import config 
+import model 
+
+import random 
+import time 
+import os, sys 
+import math 
+import argparse 
+from collections import OrderedDict 
+
 import numpy as np 
+from utils import * 
 
-li = [] 
-Y_in = [] 
-num_images = 500 
-num_test = 11 
-image_dim = 64 
-for i in range ( 0 ,num_images): 
-if (i % 2 == 0 ): 
-name = ' data/train/cat. ' + str (i / 2 ) + ' .jpg ' 
-img = cv2.imread(name) 
-img = cv2.resize(img,(image_dim,image_dim)) 
-li.append(img) 
-Y_in.append( 0 ) 
-else : 
-name = ' data/train/dog. ' + str ((i - 1 ) / 2 ) + ' .jpg ' 
-img = cv2.imread(name) 
-img = cv2.resize(img,(image_dim,image_dim)) 
-li.append(img) 
-Y_in.append( 1 ) 
-# cv2.imshow('img'+str(i),img) 
+class Trainer ( object ): 
 
-li_test = [] 
-for i in range ( 1 ,num_test): 
-name = ' data/test/ ' + str (i) + ' .jpg ' 
-img = cv2.imread(name) 
-img = cv2.resize(img,(image_dim,image_dim)) 
-li_test.append(img) 
+def __init__ ( self , config , args ): 
+self .config = config 
+for k, v in args. __dict__ .items(): 
+setattr ( self .config, k, v) 
+setattr ( self .config, ' save_dir ' , ' {} _log ' .format( self .config.dataset)) 
 
-X_test = np.array(li_test) 
-print X_test.shape 
-X_test = np.reshape(X_test,(num_test - 1 ,X_test.shape[ 1 ] * X_test.shape[ 2 ] * X_test.shape[ 3 ])) 
+disp_str = ' ' 
+for attr in sorted ( dir ( self .config), key = lambda x : len (x)): 
+if not attr.startswith( ' __ ' ): 
+disp_str += ' {} : {} \n ' .format(attr, getattr ( self .config, attr)) 
+sys.stdout.write(disp_str) 
+sys.stdout.flush() 
 
-X_in = np.array(li) 
-X_in = np.reshape(X_in,(num_images,X_in.shape[ 1 ] * X_in.shape[ 2 ] * X_in.shape[ 3 ])) 
-print X_test.shape 
-Y_in = np.array(Y_in) 
-Y_in = np.reshape(Y_in,(num_images, 1 )) 
-# print Y_test.shape 
+self .labeled_loader, self .unlabeled_loader, self .unlabeled_loader2, self .dev_loader, self .special_set = data.get_cifar_loaders(config) 
 
-def conv2d ( X , W ): 
-return tf.nn.conv2d(X,W, strides = [ 1 , 1 , 1 , 1 ], padding = ' SAME ' ) 
+self .dis = model.Discriminative(config).cuda() 
+self .gen = model.Generator( image_size = config.image_size, noise_size = config.noise_size).cuda() 
+self .enc = model.Encoder(config.image_size, noise_size = config.noise_size, output_params = True ).cuda() 
 
-def max_pool_2x2 ( X ): 
-return tf.nn.max_pool(X, ksize = [ 1 , 2 , 2 , 1 ], strides = [ 1 , 2 , 2 , 1 ], padding = ' SAME ' ) 
+self .dis_optimizer = optim.Adam( self .dis.parameters(), lr = config.dis_lr, betas = ( 0.5 , 0.999 )) 
+self .gen_optimizer = optim.Adam( self .gen.parameters(), lr = config.gen_lr, betas = ( 0.0 , 0.999 )) 
+self .enc_optimizer = optim.Adam( self .enc.parameters(), lr = config.enc_lr, betas = ( 0.0 , 0.999 )) 
 
-W_conv1 = tf.Variable(tf.random_normal([ 5 , 5 , 3 , 64 ], stddev = 0.1 ) * 0.01 ) 
-b_conv1 = tf.Variable(tf.constant( 0.1 , shape = [ 64 ])) 
+self .d_criterion = nn.CrossEntropyLoss() 
 
-X = tf.placeholder(tf.float32,[ None ,X_in.shape[ 1 ]]) 
-Y = tf.placeholder(tf.float32,[ None , 1 ]) 
+if not os.path.exists( self .config.save_dir): 
+os.makedirs( self .config.save_dir) 
 
-X_image = tf.reshape(X,[ - 1 ,image_dim,image_dim, 3 ]) 
+log_path = os.path.join( self .config.save_dir, ' {} .FM+VI. {} .txt ' .format( self .config.dataset, self .config.suffix)) 
+self .logger = open (log_path, ' wb ' ) 
+self .logger.write(disp_str) 
 
-h_conv1 = tf.nn.tanh(conv2d(X_image,W_conv1) + b_conv1) 
-h_pool1 = max_pool_2x2(h_conv1) 
+print self .dis 
 
-W_conv2 = tf.Variable(tf.random_normal([ 5 , 5 , 64 , 128 ])) 
-b_conv2 = tf.Variable(tf.constant( 0.1 , shape = [ 128 ])) 
+def _get_vis_images ( self , labels ): 
+labels = labels.data.cpu() 
+vis_images = self .special_set.index_select( 0 , labels) 
+return vis_images 
 
-h_conv2 = tf.nn.tanh(conv2d(h_pool1,W_conv2) + b_conv2) 
-h_pool2 = max_pool_2x2(h_conv2) 
+def _train ( self , labeled = None , vis = False ): 
+config = self .config 
+self .dis.train() 
+self .gen.train() 
+self .enc.train() 
 
-W_dcl1 = tf.Variable(tf.random_normal([image_dim * image_dim * 128 / 16 , 1024 ], stddev = 0.1 ) * 0.01 ) 
-b_dcl1 = tf.Variable(tf.constant( 0.1 , shape = [ 1024 ])) 
+# #### train Dis 
+lab_images, lab_labels = self .labeled_loader.next() 
+lab_images, lab_labels = Variable(lab_images.cuda()), Variable(lab_labels.cuda()) 
 
-h_pool2_flat = tf.reshape(h_pool2,[ - 1 ,image_dim * image_dim * 128 / 16 ]) 
-h_dcl = tf.nn.tanh(tf.matmul(h_pool2_flat,W_dcl1) + b_dcl1) 
+unl_images, _ = self .unlabeled_loader.next() 
+unl_images = Variable(unl_images.cuda()) 
 
-W_dcl2 = tf.Variable(tf.random_normal([ 1024 , 1 ]) * 0.01 ) 
-b_dcl2 = tf.Variable(tf.constant( 0.1 , shape = [ 1 ])) 
+noise = Variable(torch.Tensor(unl_images.size( 0 ), config.noise_size).uniform_().cuda()) 
+gen_images = self .gen(noise) 
 
-y_conv = tf.sigmoid(tf.matmul(h_dcl,W_dcl2) + b_dcl2) 
+lab_logits = self .dis(lab_images) 
+unl_logits = self .dis(unl_images) 
+gen_logits = self .dis(gen_images.detach()) 
 
-cost = tf.reduce_mean( - 1 * Y * tf.log(y_conv) - ( 1 - Y) * tf.log( 1 - y_conv)) 
-cost_new = tf.reduce_sum(Y * ( 1 - y_conv) + ( 1 - Y) * y_conv) 
-train_step = tf.train.AdamOptimizer( 1e-4 ).minimize(cost) 
-# predicted=Y if ((y_conv0.5 and Y==1) or (y_conv0.5 and Y==0)) else (1-Y) 
-# correct_prediction=tf.equal(predicted,Y) 
-# accuracy=tf.reduce_mean(tf.cast(correct_prediction,tf.float32))*100 
-with tf.Session() as sess: 
-sess.run(tf.global_variables_initializer()) 
-saver = tf.train.Saver() 
-# *****Training****** 
-# for i in range(0,10000): 
-# train_step.run(feed_dict={X:X_in,Y:Y_in}) 
-# if(i%10==0): 
-# print i 
-# if(i%500==0): 
-# print(sess.run(cost_new,feed_dict={X:X_test,Y: [[1],[1],[1],[1],[0],[0],[0],[0],[0],[0]]})) 
-# if(i%2000==0): 
-# save_path=saver.save(sess,./save/restore) 
-# print(saved in+save_path) 
-# print(sess.run(y_conv,feed_dict={X:X_test})) 
-# save_path=saver.save(sess,./save/restore) 
-# print(saved in+save_path) 
+# Standard classification loss 
+lab_loss = self .d_criterion(lab_logits, lab_labels) 
 
-# ****Restoring*** 
-saver.restore(sess, ./save/restore ) 
-print restored 
+# GAN true-fake loss: sumexp(logits) is seen as the input to the sigmoid 
+unl_logsumexp = log_sum_exp(unl_logits) 
+gen_logsumexp = log_sum_exp(gen_logits) 
 
-img = cv2.imread( test2.jpg ) 
-img = cv2.resize(img,(image_dim,image_dim)) 
-prob = sess.run((y_conv * 100 ), feed_dict = {X:np.reshape(np.array(img),( - 1 ,img.shape[ 0 ] * img.shape[ 1 ] * img.shape[ 2 ]))}) 
-if (prob 40 ): 
-print It is cat with probability + str ( 100 - prob[ 0 ][ 0 ]) 
-if (prob 60 ): 
-print It is dog with probability + str (prob[ 0 ][ 0 ]) 
-if (prob = 40 and prob = 60 ): 
-print Confusing data, can be dog with probability + str (prob[ 0 ][ 0 ]) 
+true_loss = - 0.5 * torch.mean(unl_logsumexp) + 0.5 * torch.mean(F.softplus(unl_logsumexp)) 
+fake_loss = 0.5 * torch.mean(F.softplus(gen_logsumexp)) 
+unl_loss = true_loss + fake_loss 
+
+d_loss = lab_loss + unl_loss 
+
+# #### Monitoring (train mode) 
+# true-fake accuracy 
+unl_acc = torch.mean(nn.functional.sigmoid(unl_logsumexp.detach()).gt( 0.5 ).float()) 
+gen_acc = torch.mean(nn.functional.sigmoid(gen_logsumexp.detach()).gt( 0.5 ).float()) 
+# top-1 logit compared to 0: to verify Assumption (2) and (3) 
+max_unl_acc = torch.mean(unl_logits.max( 1 )[ 0 ].detach().gt( 0.0 ).float()) 
+max_gen_acc = torch.mean(gen_logits.max( 1 )[ 0 ].detach().gt( 0.0 ).float()) 
+
+self .dis_optimizer.zero_grad() 
+d_loss.backward() 
+self .dis_optimizer.step() 
+
+# #### train Gen and Enc 
+noise = Variable(torch.Tensor(unl_images.size( 0 ), config.noise_size).uniform_().cuda()) 
+gen_images = self .gen(noise) 
+
+# Entropy loss via variational inference 
+mu, log_sigma = self .enc(gen_images) 
+vi_loss = gaussian_nll(mu, log_sigma, noise) 
+
+# Feature matching loss 
+unl_feat = self .dis(unl_images, feat = True ) 
+gen_feat = self .dis(gen_images, feat = True ) 
+fm_loss = torch.mean(torch.abs(torch.mean(gen_feat, 0 ) - torch.mean(unl_feat, 0 ))) 
+
+# Generator loss 
+g_loss = fm_loss + config.vi_weight * vi_loss 
+
+self .gen_optimizer.zero_grad() 
+self .enc_optimizer.zero_grad() 
+g_loss.backward() 
+self .gen_optimizer.step() 
+self .enc_optimizer.step() 
+
+monitor_dict = OrderedDict([ 
+( ' unl acc ' , unl_acc.data[ 0 ]), 
+( ' gen acc ' , gen_acc.data[ 0 ]), 
+( ' max unl acc ' , max_unl_acc.data[ 0 ]), 
+( ' max gen acc ' , max_gen_acc.data[ 0 ]), 
+( ' lab loss ' , lab_loss.data[ 0 ]), 
+( ' unl loss ' , unl_loss.data[ 0 ]), 
+( ' fm loss ' , fm_loss.data[ 0 ]), 
+( ' vi loss ' , vi_loss.data[ 0 ]) 
+]) 
+
+return monitor_dict 
+
+def eval_true_fake ( self , data_loader , max_batch = None ): 
+self .gen.eval() 
+self .dis.eval() 
+self .enc.eval() 
+
+cnt = 0 
+unl_acc, gen_acc, max_unl_acc, max_gen_acc = 0 ., 0 ., 0 ., 0 . 
+for i, (images, _) in enumerate (data_loader.get_iter()): 
+images = Variable(images.cuda(), volatile = True ) 
+noise = Variable(torch.Tensor(images.size( 0 ), self .config.noise_size).uniform_().cuda(), volatile = True ) 
+
+unl_feat = self .dis(images, feat = True ) 
+gen_feat = self .dis( self .gen(noise), feat = True ) 
+
+unl_logits = self .dis.out_net(unl_feat) 
+gen_logits = self .dis.out_net(gen_feat) 
+
+unl_logsumexp = log_sum_exp(unl_logits) 
+gen_logsumexp = log_sum_exp(gen_logits) 
+
+# #### Monitoring (eval mode) 
+# true-fake accuracy 
+unl_acc += torch.mean(nn.functional.sigmoid(unl_logsumexp).gt( 0.5 ).float()).data[ 0 ] 
+gen_acc += torch.mean(nn.functional.sigmoid(gen_logsumexp).gt( 0.5 ).float()).data[ 0 ] 
+# top-1 logit compared to 0: to verify Assumption (2) and (3) 
+max_unl_acc += torch.mean(unl_logits.max( 1 )[ 0 ].gt( 0.0 ).float()).data[ 0 ] 
+max_gen_acc += torch.mean(gen_logits.max( 1 )[ 0 ].gt( 0.0 ).float()).data[ 0 ] 
+
+cnt += 1 
+if max_batch is not None and i = max_batch - 1 : break 
+
+return unl_acc / cnt, gen_acc / cnt, max_unl_acc / cnt, max_gen_acc / cnt 
+
+def eval ( self , data_loader , max_batch = None ): 
+self .gen.eval() 
+self .dis.eval() 
+self .enc.eval() 
+
+loss, incorrect, cnt = 0 , 0 , 0 
+for i, (images, labels) in enumerate (data_loader.get_iter()): 
+images = Variable(images.cuda(), volatile = True ) 
+labels = Variable(labels.cuda(), volatile = True ) 
+pred_prob = self .dis(images) 
+loss += self .d_criterion(pred_prob, labels).data[ 0 ] 
+cnt += 1 
+incorrect += torch.ne(torch.max(pred_prob, 1 )[ 1 ], labels).data.sum() 
+if max_batch is not None and i = max_batch - 1 : break 
+return loss / cnt, incorrect 
+
+
+def visualize ( self ): 
+self .gen.eval() 
+self .dis.eval() 
+self .enc.eval() 
+
+vis_size = 100 
+noise = Variable(torch.Tensor(vis_size, self .config.noise_size).uniform_().cuda()) 
+gen_images = self .gen(noise) 
+
+save_path = os.path.join( self .config.save_dir, ' {} .FM+VI. {} .png ' .format( self .config.dataset, self .config.suffix)) 
+vutils.save_image(gen_images.data.cpu(), save_path, normalize = True , range = ( - 1 , 1 ), nrow = 10 ) 
+
+def param_init ( self ): 
+def func_gen ( flag ): 
+def func ( m ): 
+if hasattr (m, ' init_mode ' ): 
+setattr (m, ' init_mode ' , flag) 
+return func 
+
+images = [] 
+for i in range ( 500 / self .config.train_batch_size): 
+lab_images, _ = self .labeled_loader.next() 
+images.append(lab_images) 
+images = torch.cat(images, 0 ) 
+
+self .gen.apply(func_gen( True )) 
+noise = Variable(torch.Tensor(images.size( 0 ), self .config.noise_size).uniform_().cuda()) 
+gen_images = self .gen(noise) 
+self .gen.apply(func_gen( False )) 
+
+self .enc.apply(func_gen( True )) 
+self .enc(gen_images) 
+self .enc.apply(func_gen( False )) 
+
+self .dis.apply(func_gen( True )) 
+logits = self .dis(Variable(images.cuda())) 
+self .dis.apply(func_gen( False )) 
+
+def train ( self ): 
+config = self .config 
+self .param_init() 
+
+self .iter_cnt = 0 
+iter , min_dev_incorrect = 0 , 1e6 
+monitor = OrderedDict() 
+
+batch_per_epoch = int (( len ( self .unlabeled_loader) + config.train_batch_size - 1 ) / config.train_batch_size) 
+min_lr = config.min_lr if hasattr (config, ' min_lr ' ) else 0.0 
+while True : 
+
+if iter % batch_per_epoch == 0 : 
+epoch = iter / batch_per_epoch 
+epoch_ratio = float (epoch) / float (config.max_epochs) 
+# use another outer max to prevent any float computation precision problem 
+self .dis_optimizer.param_groups[ 0 ][ ' lr ' ] = max (min_lr, config.dis_lr * min ( 3 . * ( 1 . - epoch_ratio), 1 .)) 
+self .gen_optimizer.param_groups[ 0 ][ ' lr ' ] = max (min_lr, config.gen_lr * min ( 3 . * ( 1 . - epoch_ratio), 1 .)) 
+self .enc_optimizer.param_groups[ 0 ][ ' lr ' ] = max (min_lr, config.enc_lr * min ( 3 . * ( 1 . - epoch_ratio), 1 .)) 
+
+iter_vals = self ._train() 
+
+for k, v in iter_vals.items(): 
+if not monitor.has_key(k): 
+monitor[k] = 0 . 
+monitor[k] += v 
+
+if iter % config.vis_period == 0 : 
+self .visualize() 
+
+if iter % config.eval_period == 0 : 
+train_loss, train_incorrect = self .eval( self .labeled_loader) 
+dev_loss, dev_incorrect = self .eval( self .dev_loader) 
+
+unl_acc, gen_acc, max_unl_acc, max_gen_acc = self .eval_true_fake( self .dev_loader, 10 ) 
+
+train_incorrect /= 1.0 * len ( self .labeled_loader) 
+dev_incorrect /= 1.0 * len ( self .dev_loader) 
+min_dev_incorrect = min (min_dev_incorrect, dev_incorrect) 
+
+disp_str = ' # {} \t train: { :.4f } , { :.4f } | dev: { :.4f } , { :.4f } | best: { :.4f } ' .format( 
+iter , train_loss, train_incorrect, dev_loss, dev_incorrect, min_dev_incorrect) 
+for k, v in monitor.items(): 
+disp_str += ' | {} : { :.4f } ' .format(k, v / config.eval_period) 
+
+disp_str += ' | [Eval] unl acc: { :.4f } , gen acc: { :.4f } , max unl acc: { :.4f } , max gen acc: { :.4f } ' .format(unl_acc, gen_acc, max_unl_acc, max_gen_acc) 
+disp_str += ' | lr: { :.5f } ' .format( self .dis_optimizer.param_groups[ 0 ][ ' lr ' ]) 
+disp_str += ' \n ' 
+
+monitor = OrderedDict() 
+
+self .logger.write(disp_str) 
+sys.stdout.write(disp_str) 
+sys.stdout.flush() 
+
+iter += 1 
+self .iter_cnt += 1 
+
+if __name__ == ' __main__ ' : 
+parser = argparse.ArgumentParser( description = ' cifar_trainer.py ' ) 
+parser.add_argument( ' -suffix ' , default = ' run0 ' , type = str , help = Suffix added to the save images. ) 
+
+args = parser.parse_args() 
+
+trainer = Trainer(config.cifar_config(), args) 
+trainer.train() 
+
 
