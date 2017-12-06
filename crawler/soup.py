@@ -10,8 +10,9 @@ def extract_code(url,file_name):
 	# repcontent=(soup.find(class_="repository-content")).find_all('table')
 	# for row in soup.find(class_="repository-content").find_all("tr"):
 	# 	print(row,'\n')
-	date=soup.find_all(datetime=True)
-	print(date)
+	# date=soup.find_all(datetime=True)
+	date=soup.findChildren(['relative-time'])
+	datetime=date[0]['datetime']
 	tables=soup.findChildren('table')
 	# print(tables)
 	my_table=tables[0]
@@ -30,8 +31,10 @@ def extract_code(url,file_name):
 			# for span in spans:
 				# print(span.string)
 		file.write('\n')
+	return datetime
 
 
 url="https://github.com/sanskar-sopho/Traffic_Sign_Detector/blob/master/nn.py"
 file_name='code1.txt'
-extract_code(url,file_name)
+datetime=extract_code(url,file_name)
+print(datetime)
