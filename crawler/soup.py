@@ -2,7 +2,7 @@ from bs4 import BeautifulSoup
 import urllib2
 import sys
 
-repo="https://github.com/sanskar-sopho/models/"
+repo="https://github.com/iiitv/algos"
 base_link='https://github.com'
 file_count=0
 
@@ -19,30 +19,37 @@ def extract_code(url,file_name):
 	# for row in soup.find(class_="repository-content").find_all("tr"):
 	# 	print(row,'\n')
 	# date=soup.find_all(datetime=True)
-	date=soup.findChildren(['relative-time'])
-	print date
-	datetime=date[0]['datetime']
-	tables=soup.findChildren('table')
-	# print(tables)
-	my_table=tables[0]
-	rows=my_table.findChildren(['th','tr'])
-	
-	line=0
-	for row in rows:
-		# print(line)
-		line+=1
-		for string in row.stripped_strings:
-			string=str(unicode(string))
-			# print(string)
-			file.write(string)
-			file.write(' ')
-			# spans=cells[1].findChildren('span')
-			# for span in spans:
-				# print(span.string)
-		file.write('\n')
-	return datetime
+	try:
+		date=soup.findChildren(['relative-time'])
+		if(date!=[]):
+			datetime=date[0]['datetime']
+		else:
+			datetime=0
+		tables=soup.findChildren('table')
+		# print(tables)
+		my_table=tables[0]
+		rows=my_table.findChildren(['th','tr'])
+		
+		line=0
+		for row in rows:
+			# print(line)
+			line+=1
+			for string in row.stripped_strings:
+				string=str(unicode(string))
+				# print(string)
+				file.write(string)
+				file.write(' ')
+				# spans=cells[1].findChildren('span')
+				# for span in spans:
+					# print(span.string)
+			file.write('\n')
+		return datetime
+	except:
+		print("Error in this file")
+		file_count-=1
 
 def expand_folder(url):
+	global file_count
 	print "folder : ", url
 	page=urllib2.urlopen(url)
 	soup=BeautifulSoup(page,'xml')
@@ -65,6 +72,6 @@ def expand_folder(url):
 				datetime=extract_code(base_link+link,str(file_count)+'.txt')
 				print 'file written ', datetime
 			else:
-				return
+				continue
 
 expand_folder(repo)
