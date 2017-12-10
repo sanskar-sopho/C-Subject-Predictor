@@ -1,6 +1,7 @@
 from bs4 import BeautifulSoup
 import urllib2
 
+url="https://github.com/sanskar-sopho/Traffic_Sign_Detector/"
 
 def extract_code(url,file_name):
 	page=urllib2.urlopen(url)
@@ -34,7 +35,8 @@ def extract_code(url,file_name):
 	return datetime
 
 
-url="https://github.com/sanskar-sopho/Traffic_Sign_Detector/blob/master/nn.py"
-file_name='code1.txt'
-datetime=extract_code(url,file_name)
-print(datetime)
+page=urllib2.urlopen(url)
+soup=BeautifulSoup(page,'xml')
+tables=soup.findChildren('table')
+rows=tables[0].findChildren(['th','tr'])
+print rows[0]
