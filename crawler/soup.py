@@ -66,9 +66,9 @@ def expand_folder(url):
 			link=tag['href']
 			if('README' in link):
 				continue
-			if('tree' in link):
+			if('tree/master' in link):
 				expand_folder(base_link+link)
-			if('blob' in link):
+			if(('blob/master' in link) and ('.c' in link)):
 				datetime=extract_code(base_link+link,str(file_count)+'.txt')
 				print 'file written ', datetime
 			else:
