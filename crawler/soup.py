@@ -1,7 +1,7 @@
 from bs4 import BeautifulSoup
 import urllib2
 
-url="https://github.com/sanskar-sopho/Traffic_Sign_Detector/"
+url="https://github.com/sanskar-sopho/road-segmentation/"
 
 def extract_code(url,file_name):
 	page=urllib2.urlopen(url)
@@ -37,6 +37,13 @@ def extract_code(url,file_name):
 
 page=urllib2.urlopen(url)
 soup=BeautifulSoup(page,'xml')
-tables=soup.findChildren('table')
-rows=tables[0].findChildren(['th','tr'])
-print rows[0]
+table=soup.find('table')
+rows=table.find_all(['th','tr'])
+for row in rows:
+	if('js-navigation-item' not in row['class']):
+		continue
+	cols=row.find_all('td')
+	for col in cols:
+		if('content' not in col['class']):
+			continue
+		print col
