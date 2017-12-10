@@ -13,7 +13,7 @@ def extract_code(url,file_name):
 		sys.exit
 	page=urllib2.urlopen(url)
 	soup=BeautifulSoup(page,'xml')
-	file=open(file_name,'w')
+	file=open('codes/'+file_name,'w')
 	file_count+=1
 	# repcontent=(soup.find(class_="repository-content")).find_all('table')
 	# for row in soup.find(class_="repository-content").find_all("tr"):
@@ -24,7 +24,7 @@ def extract_code(url,file_name):
 		if(date!=[]):
 			datetime=date[0]['datetime']
 		else:
-			datetime=0
+			datetime='Not Available'
 		tables=soup.findChildren('table')
 		# print(tables)
 		my_table=tables[0]
@@ -43,6 +43,8 @@ def extract_code(url,file_name):
 				# for span in spans:
 					# print(span.string)
 			file.write('\n')
+		label_file.write('codes/'+str(file_count-1)+'.txt '+url+'\n')
+		file.close()
 		return datetime
 	except:
 		print("Error in this file")
@@ -74,4 +76,6 @@ def expand_folder(url):
 			else:
 				continue
 
+label_file=open('labels.txt','a')
 expand_folder(repo)
+label_file.close()
