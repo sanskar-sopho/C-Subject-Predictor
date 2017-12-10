@@ -2,11 +2,13 @@ from bs4 import BeautifulSoup
 import urllib2
 import sys
 
-repo="https://github.com/sanskar-sopho/road-segmentation/"
-base_link='http://github.com'
+repo="https://github.com/sanskar-sopho/models/"
+base_link='https://github.com'
 file_count=0
 
 def extract_code(url,file_name):
+	print 'file : ',url
+	global file_count
 	if(file_count>=50):
 		sys.exit
 	page=urllib2.urlopen(url)
@@ -18,6 +20,7 @@ def extract_code(url,file_name):
 	# 	print(row,'\n')
 	# date=soup.find_all(datetime=True)
 	date=soup.findChildren(['relative-time'])
+	print date
 	datetime=date[0]['datetime']
 	tables=soup.findChildren('table')
 	# print(tables)
@@ -39,14 +42,14 @@ def extract_code(url,file_name):
 		file.write('\n')
 	return datetime
 
-def expand_folder(url)
+def expand_folder(url):
 	print "folder : ", url
 	page=urllib2.urlopen(url)
 	soup=BeautifulSoup(page,'xml')
 	table=soup.find('table')
 	rows=table.find_all(['th','tr'])
 	for row in rows:
-		if('js-navigation-item' not in row['class']):
+		if(('js-navigation-item' not in row['class']) or ('up-tree' in row['class'])):
 			continue
 		cols=row.find_all('td')
 		for col in cols:
@@ -54,12 +57,14 @@ def expand_folder(url)
 				continue
 			tag=col.find('a')
 			link=tag['href']
+			if('README' in link):
+				continue
 			if('tree' in link):
 				expand_folder(base_link+link)
 			if('blob' in link):
 				datetime=extract_code(base_link+link,str(file_count)+'.txt')
-				print('file written ', datetime)
+				print 'file written ', datetime
 			else:
 				return
 
-	expand_folder(repo)
+expand_folder(repo)
