@@ -1,0 +1,37 @@
+
+
+
+    sudo apt-get update
+    sudo apt-get install mysql-server
+    sudo mysql_secure_installation
+    sudo mysql_install_db
+At the time of above installation, set the password say 
+
+root
+
+
+sudo apt-get install libmysqlclient-dev
+try one of the following commands
+    pip install mysqldb.
+    pip install mysql.
+    pip install mysql-python.
+    pip install MySQL-python.
+    easy_install mysql-python.
+    easy_install MySQL-python.
+
+
+username is bydefault root
+
+
+
+ mysql -u root -p
+ show databases
+ create databases test;
+ use test
+ ______________________________________________________________________________
+
+sudo systemctl start apache2.service
+sudo systemctl stop apache2.service
+sudo systemctl status apache2.service
+ 
+ 

@@ -2,9 +2,9 @@ from bs4 import BeautifulSoup
 import urllib2
 import sys
 
-repo="https://github.com/iiitv/algos"
+repo="https://github.com/xtaci/algorithms"
 base_link='https://github.com'
-file_count=0
+file_count=42
 
 def extract_code(url,file_name):
 	print 'file : ',url
