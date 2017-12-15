@@ -6,7 +6,7 @@ import os
 import MySQLdb
 
 # Open database connection
-db = MySQLdb.connect("localhost","root","root","Comments" )
+db = MySQLdb.connect(host="localhost",user="root",passwd="1698809",db=  "Comments" )
 
 # prepare a cursor object using cursor() method
 cursor = db.cursor()
@@ -14,6 +14,7 @@ cursor = db.cursor()
 # Prepare SQL query to INSERT a record into the database.
 
 def Insert_In_Db(result) :
+    print("Inserting ",result)
     for r in result:
 	fname = r[0]
  	sline = int(r[1])
@@ -103,6 +104,6 @@ if __name__ == "__main__":
 	if os.path.isdir(dirname) == True:
              files = os.listdir(dirname)
 	     for fl in files:
-		if fl.endswith('.c') or fl.endswith('.cpp') :
+		if fl.endswith('.c') or fl.endswith('.cpp') or fl.endswith('.txt'):
                     print_command(dirname + "/" + fl)
     db.close()	

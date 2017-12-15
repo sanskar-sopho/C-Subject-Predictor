@@ -1,8 +1,7 @@
 import MySQLdb
 
 # Open database connection
-db = MySQLdb.connect("localhost","root","root","Comments" )
-
+db = MySQLdb.connect(host="localhost",user="root",passwd="1698809",db=  "Comments" )
 # prepare a cursor object using cursor() method
 cursor = db.cursor()
 
@@ -12,7 +11,7 @@ cursor.execute("DROP TABLE IF EXISTS CommentAnalysis")
 sql = """ CREATE TABLE CommentAnalysis (
            id INT NOT NULL AUTO_INCREMENT primary key,
            CommentId INT,
-	   KeywordNo INT,
+	         KeywordNo INT,
            Keyword VARCHAR(100) NOT NULL,
            VocabType VARCHAR(100),
            POSTYPE VARCHAR(50),
