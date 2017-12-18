@@ -14,17 +14,18 @@ AllWords = []
 for row in cursor:
     comment = row[0];
     words = comment.split()
-    print(words)
+    # print(words)
     for w in words :	
         AllWords.append(w)
-# print('-----------List of All the Words----------------')
-# print(FinalStrWords)
-# print('------------Count of All words------------------')
-# print(len(FinalStrWords))
 
 Unique_Words = list(set(AllWords))
-# print('------------List of Unique Words----------------')
-print(Unique_Words)
-# print('------------Count of Unique Words---------------')
-# print(len(Unique_Word_List))
+# print(Unique_Words)
 db.close()
+
+word2int={}
+int2word={}
+for i,word in enumerate(Unique_Words):
+	word2int[word]=i
+	int2word[i]=word
+
+
