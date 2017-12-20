@@ -102,6 +102,36 @@ def restore():
 with tf.Session() as sess:
 	tf.global_variables_initializer().run()
 	# train()
-	# restore()
+	restore()
 	# print(sess.run(loss,feed_dict={X:train_x,Y:train_y}))
-	# print(sess.run(embeddings))
+	embeddings=np.array(sess.run(embeddings))
+	print embeddings
+
+# We have word2vec, now defining RNN
+
+n_steps=5
+n_feature=embed_size
+n_neurons=45
+n_class=3
+l_rate=0.001
+
+tf.reset_default_graph()
+
+X=tf.placeholder(tf.float32,[None,n_steps,n_feature])
+Y=tf.placeholder(tf.int32,[None,n_class])
+
+basic_cell=tf.nn.rnn_cell.BasicLSTMCell(num_units=n_neurons)
+
+outputs,states=tf.nn.dynamic_rnn(basic_cell,X,dtype=tf.float32)
+
+outputs=tf.unstack(tf.transpose(outputs,perm=[1,0,2]))
+last_output=outputs[-1]
+
+logits=fully_connected(last_output,n_class,activation_fn=None)
+cross_entropy=tf.nn.softmax_cross_entropy_with_logits=(logits,Y)
+
+loss=tf.reduce_mean(cross_entropy)
+train_step=tf.train.AdamOptimizer(l_rate).minimize(loss)
+
+correct=tf.equal(tf.argmax(logits,1),tf.argmax(Y,1))
+accuracy=tf.reduce_mean(tf.cast(correct,tf.float32))
