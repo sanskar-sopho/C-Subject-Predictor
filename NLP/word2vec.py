@@ -112,7 +112,7 @@ with tf.Session() as sess:
 
 # We have word2vec, now defining RNN
 # 0 Memory 1 Operation 2 Algorithm 3 Concurrency
-data=['assign','memory','contiguous','allocated','storage','file handl','sub problem','iterative sort','bucket sort','insertion sort','merge sort','replace','puts','gets','declaration','initialisation','Step','insert','select','insert','add','delete','deadlock','livelock','synchronisation','data race']
+data=['assign','memory','contiguous','allocated','storage','file handl','sub problem','iterative sort','bucket sort',	'insertion sort','merge sort','replace','puts','gets','declaration','initialisation','Step','insert','select','insert','add','delete','deadlock','livelock','synchronisation','data race']
 labels=[0,0,0,0,0,1,2,2,2,2,2,1,1,1,1,1,1,1,1,1,1,1,3,3,3,3]
 
 
@@ -123,9 +123,9 @@ n_class=4
 l_rate=0.001
 num_iter=1000
 
-X_=[]
-for element in data:
-	words=element.split()
+def convert_input_to_vector(sentence):
+	X_=[]
+	words=sentence.split()
 	i=0
 	for word in words:
 		X_.append(embeddings[word2int[word]])
@@ -133,7 +133,11 @@ for element in data:
 	while(i<n_steps):
 		X_.append([0 for j in range(0,n_feature)])
 		i+=1
+	return X_
 
+X_=[]
+for element in data:
+	X_.append(convert_input_to_vector(element))
 X_=np.array(X_)
 Y_=[]
 for label in labels:
@@ -178,11 +182,26 @@ def train_rnn():
 
 def restore_rnn():
 	saver=tf.train.Saver()
-	saver.restore('rnn_saver/model.ckpt')
+	saver.restore(sess,'rnn_saver/model.ckpt')
 	print "Successfully restored"
 
 with tf.Session() as sess:
 	tf.global_variables_initializer().run()
-	# train_rnn()
-	restore_rnn()
-	print "Accuracy = ",accuracy.eval(feed_dict={X:X_,Y:Y_})
+	train_rnn()
+	# restore_rnn()
+	print "Accuracy = ",accuracy.eval(feed_dict={X:X_,Y:Y_})*100
+
+	word=raw_input("Enter any word from Vocab")
+	vec=convert_input_to_vector(word)
+	vec=np.array(vec)
+	vec=vec.reshape(-1,n_steps,n_feature)
+	pre_class=tf.argmax(logits,1).eval(feed_dict={X:vec})
+	if(pre_class==0):
+		pre_class='Memory'
+	elif(pre_class==2):
+		pre_class='Algorithm'
+	elif(pre_class==1):
+		pre_class='Operation'
+	elif(pre_class==3):
+		pre_class='Concurrency'
+	print "Predicted class is ",pre_class
