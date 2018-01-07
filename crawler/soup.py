@@ -1,10 +1,16 @@
 from bs4 import BeautifulSoup
 import urllib2
 import sys
+import os
 
 repo="https://github.com/xtaci/algorithms"
 base_link='https://github.com'
-file_count=42
+
+def get_file_count():
+	files=os.listdir('codes/')
+	return len(files)
+
+file_count=get_file_count()
 
 def extract_code(url,file_name):
 	print 'file : ',url
