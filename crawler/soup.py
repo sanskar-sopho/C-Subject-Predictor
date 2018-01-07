@@ -3,7 +3,7 @@ import urllib2
 import sys
 import os
 
-repo="https://github.com/xtaci/algorithms"
+repo="https://github.com/kennyledet/Algorithm-Implementations"
 base_link='https://github.com'
 
 def get_file_count():
@@ -15,8 +15,8 @@ file_count=get_file_count()
 def extract_code(url,file_name):
 	print 'file : ',url
 	global file_count
-	if(file_count>=50):
-		sys.exit
+	# if(file_count>=50):
+	# 	sys.exit
 	page=urllib2.urlopen(url)
 	soup=BeautifulSoup(page,'xml')
 	file=open('codes/'+file_name,'w')
@@ -26,11 +26,14 @@ def extract_code(url,file_name):
 	# 	print(row,'\n')
 	# date=soup.find_all(datetime=True)
 	try:
+		urllib2.urlopen(url)
 		date=soup.findChildren(['relative-time'])
+		# print("Date is ",date)
 		if(date!=[]):
 			datetime=date[0]['datetime']
+			# print "Date : ",datetime
 		else:
-			datetime='Not Available'
+			datetime='Date Not Available'
 		tables=soup.findChildren('table')
 		# print(tables)
 		my_table=tables[0]
@@ -55,6 +58,7 @@ def extract_code(url,file_name):
 	except:
 		print("Error in this file")
 		file_count-=1
+		return -1
 
 def expand_folder(url):
 	global file_count
@@ -76,9 +80,11 @@ def expand_folder(url):
 				continue
 			if('tree/master' in link):
 				expand_folder(base_link+link)
-			if(('blob/master' in link) and ('.c' in link)):
+			# print type(link)
+			if(('blob/master' in link) and ('.c' in link) and ('.csv' not in link)):
 				datetime=extract_code(base_link+link,str(file_count)+'.txt')
-				print 'file written ', datetime
+				if(datetime != -1):
+					print 'file written , Date : ', datetime
 			else:
 				continue
 
