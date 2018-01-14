@@ -3,6 +3,8 @@ import tensorflow as tf
 import MySQLdb
 import math
 from tensorflow.contrib.layers import fully_connected
+from sklearn.cluster import KMeans
+import matplotlib.pyplot as plt
 
 # Open database connection
 db = MySQLdb.connect("localhost","root","1698809","Comments" )
@@ -61,7 +63,7 @@ print(train_x.shape,train_y.shape)
 vocab_size=len(Unique_Words)
 embed_size=100
 num_sampled=30
-num_iter=10000
+num_iter=50000
 
 X=tf.placeholder(tf.int32,shape=[None,1])
 Y=tf.placeholder(tf.int32,shape=[None,1])
@@ -86,17 +88,17 @@ def train():
 		feed_dict={X:train_x,Y:train_y}
 		_,l=sess.run([optimizer,loss],feed_dict)
 		if(i%100==0):
-			print i," loss = ",l
+			print("Epoch : ",i," loss = ",l)
 		if(i%10000==0 and i != 0):
-			save_path=saver.save(sess,'restore/len_26/model.ckpt')
+			save_path=saver.save(sess,'restore/len_100_highly_trained/model.ckpt')
 			print "Successfully saved in ",save_path	
-	save_path=saver.save(sess,'restore/len_26/model.ckpt')
+	save_path=saver.save(sess,'restore/len_100_highly_trained/model.ckpt')
 	print "Successfully saved in ",save_path
 
 def restore():
 	saver=tf.train.Saver([embeddings,soft_weights,soft_biases])
 	# tf.reset_default_graph()
-	saver.restore(sess,"restore/len_100/model.ckpt")
+	saver.restore(sess,"restore/len_100_highly_trained/model.ckpt")
 	print "Successfully Restored"
 
 
@@ -105,4 +107,28 @@ with tf.Session() as sess:
 	# train()
 	restore()
 	embeddings=np.array(sess.run(embeddings))
-	
+
+
+# Now clustering the unique words.
+
+# n_clusters=[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]
+# inertia=[]
+# for i in n_clusters:
+# 	kmeans=KMeans(i,init='k-means++').fit(embeddings)
+# 	inertia.append(kmeans.inertia_)
+
+# plt.plot(n_clusters,inertia)
+# plt.show()
+
+n_clusters=10
+kmeans=KMeans(n_clusters,n_init=100).fit_predict(embeddings)
+file=open('clusters.txt','w')
+for cl_no in range(0,n_clusters):
+	file.write('Cluster ')
+	file.write(str(cl_no))
+	file.write('\n')
+	for i in range(0,len(kmeans)):
+		if(kmeans[i]==cl_no):
+			file.write(int2word[i])
+			file.write(' ')
+	file.write('\n\n\n')
