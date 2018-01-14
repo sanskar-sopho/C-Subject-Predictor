@@ -88,120 +88,119 @@ def train():
 		if(i%100==0):
 			print i," loss = ",l
 		if(i%10000==0 and i != 0):
-			save_path=saver.save(sess,'restore/model.ckpt')
+			save_path=saver.save(sess,'restore/len_26/model.ckpt')
 			print "Successfully saved in ",save_path	
-	save_path=saver.save(sess,'restore/model.ckpt')
+	save_path=saver.save(sess,'restore/len_26/model.ckpt')
 	print "Successfully saved in ",save_path
 
 def restore():
 	saver=tf.train.Saver([embeddings,soft_weights,soft_biases])
 	# tf.reset_default_graph()
-	saver.restore(sess,"restore/model.ckpt")
+	saver.restore(sess,"restore/len_100/model.ckpt")
 	print "Successfully Restored"
 
+
+file=open('len_100_vectors.txt','w')
 
 with tf.Session() as sess:
 	tf.global_variables_initializer().run()
 	# train()
 	restore()
-	# print(sess.run(loss,feed_dict={X:train_x,Y:train_y}))
-	embeddings=np.array(sess.run(embeddings))
-	print embeddings[3]
 
 
 
-# We have word2vec, now defining RNN
-# 0 Memory 1 Operation 2 Algorithm 3 Concurrency
-data=['assign','memory','contiguous','allocated','storage','file handl','sub problem','iterative sort','bucket sort',	'insertion sort','merge sort','replace','puts','gets','declaration','initialisation','Step','insert','select','insert','add','delete','deadlock','livelock','synchronisation','data race']
-labels=[0,0,0,0,0,1,2,2,2,2,2,1,1,1,1,1,1,1,1,1,1,1,3,3,3,3]
+# # We have word2vec, now defining RNN
+# # 0 Memory 1 Operation 2 Algorithm 3 Concurrency
+# data=['assign','memory','contiguous','allocated','storage','file handl','sub problem','iterative sort','bucket sort',	'insertion sort','merge sort','replace','puts','gets','declaration','initialisation','Step','insert','select','insert','add','delete','deadlock','livelock','synchronisation','data race']
+# labels=[0,0,0,0,0,1,2,2,2,2,2,1,1,1,1,1,1,1,1,1,1,1,3,3,3,3]
 
 
-n_steps=3
-n_feature=embed_size
-n_neurons=45
-n_class=4
-l_rate=0.001
-num_iter=1000
+# n_steps=3
+# n_feature=embed_size
+# n_neurons=45
+# n_class=4
+# l_rate=0.001
+# num_iter=1000
 
-def convert_input_to_vector(sentence):
-	X_=[]
-	words=sentence.split()
-	i=0
-	for word in words:
-		X_.append(embeddings[word2int[word]])
-		i+=1
-	while(i<n_steps):
-		X_.append([0 for j in range(0,n_feature)])
-		i+=1
-	return X_
+# def convert_input_to_vector(sentence):
+# 	X_=[]
+# 	words=sentence.split()
+# 	i=0
+# 	for word in words:
+# 		X_.append(embeddings[word2int[word]])
+# 		i+=1
+# 	while(i<n_steps):
+# 		X_.append([0 for j in range(0,n_feature)])
+# 		i+=1
+# 	return X_
 
-X_=[]
-for element in data:
-	X_.append(convert_input_to_vector(element))
-X_=np.array(X_)
-Y_=[]
-for label in labels:
-	Y_.append([(1 if i==label else 0) for i in range(0,n_class)])
-Y_=np.array(Y_)
-print(X_.shape,Y_.shape)
+# X_=[]
+# for element in data:
+# 	X_.append(convert_input_to_vector(element))
+# X_=np.array(X_)
+# Y_=[]
+# for label in labels:
+# 	Y_.append([(1 if i==label else 0) for i in range(0,n_class)])
+# Y_=np.array(Y_)
+# print(X_.shape,Y_.shape)
 
-X_=X_.reshape((-1,n_steps,n_feature))
-Y_=Y_.reshape((-1,n_class))
+# X_=X_.reshape((-1,n_steps,n_feature))
+# Y_=Y_.reshape((-1,n_class))
 
-print X_.shape,Y_.shape
-tf.reset_default_graph()
+# print X_.shape,Y_.shape
+# tf.reset_default_graph()
 
-X=tf.placeholder(tf.float32,[None,n_steps,n_feature])
-Y=tf.placeholder(tf.int32,[None,n_class])
+# X=tf.placeholder(tf.float32,[None,n_steps,n_feature])
+# Y=tf.placeholder(tf.int32,[None,n_class])
 
-basic_cell=tf.nn.rnn_cell.BasicLSTMCell(num_units=n_neurons)
+# basic_cell=tf.nn.rnn_cell.BasicLSTMCell(num_units=n_neurons)
 
-outputs,states=tf.nn.dynamic_rnn(basic_cell,X,dtype=tf.float32)
+# outputs,states=tf.nn.dynamic_rnn(basic_cell,X,dtype=tf.float32)
 
-outputs=tf.unstack(tf.transpose(outputs,perm=[1,0,2]))
-last_output=outputs[-1]
-print last_output
+# outputs=tf.unstack(tf.transpose(outputs,perm=[1,0,2]))
+# last_output=outputs[-1]
+# print last_output
 
-logits=fully_connected(last_output,n_class,activation_fn=None)
-cross_entropy=tf.nn.softmax_cross_entropy_with_logits(logits=logits,labels=Y)
+# logits=fully_connected(last_output,n_class,activation_fn=None)
+# cross_entropy=tf.nn.softmax_cross_entropy_with_logits(logits=logits,labels=Y)
 
-loss=tf.reduce_mean(cross_entropy)
-train_step=tf.train.AdamOptimizer(l_rate).minimize(loss)
+# loss=tf.reduce_mean(cross_entropy)
+# train_step=tf.train.AdamOptimizer(l_rate).minimize(loss)
 
-correct=tf.equal(tf.argmax(logits,1),tf.argmax(Y,1))
-accuracy=tf.reduce_mean(tf.cast(correct,tf.float32))
+# correct=tf.equal(tf.argmax(logits,1),tf.argmax(Y,1))
+# accuracy=tf.reduce_mean(tf.cast(correct,tf.float32))
 
-def train_rnn():
-	saver=tf.train.Saver()
-	for i in range(0,num_iter):
-		sess.run(train_step,feed_dict={X:X_,Y:Y_})
-		if(i%50==0):
-			print "loss is ",loss.eval(feed_dict={X:X_,Y:Y_})
-	save_path=saver.save(sess,'rnn_saver/model.ckpt')
-	print "Successfully saved in ",save_path
+# def train_rnn():
+# 	saver=tf.train.Saver()
+# 	for i in range(0,num_iter):
+# 		sess.run(train_step,feed_dict={X:X_,Y:Y_})
+# 		if(i%50==0):
+# 			print "loss is ",loss.eval(feed_dict={X:X_,Y:Y_})
+# 	save_path=saver.save(sess,'rnn_saver/model.ckpt')
+# 	print "Successfully saved in ",save_path
 
-def restore_rnn():
-	saver=tf.train.Saver()
-	saver.restore(sess,'rnn_saver/model.ckpt')
-	print "Successfully restored"
+# def restore_rnn():
+# 	saver=tf.train.Saver()
+# 	saver.restore(sess,'rnn_saver/model.ckpt')
+# 	print "Successfully restored"
 
-with tf.Session() as sess:
-	tf.global_variables_initializer().run()
-	train_rnn()
-	# restore_rnn()
-	print "Accuracy = ",accuracy.eval(feed_dict={X:X_,Y:Y_})*100
+# with tf.Session() as sess:
+# 	tf.global_variables_initializer().run()
+# 	train_rnn()
+# 	# restore_rnn()
+# 	print "Accuracy = ",accuracy.eval(feed_dict={X:X_,Y:Y_})*100
 
-	word=raw_input("Enter any word from Vocab")
-	vec=convert_input_to_vector(word)
-	vec=np.array(vec)
-	vec=vec.reshape(-1,n_steps,n_feature)
-	pre_class=tf.argmax(logits,1).eval(feed_dict={X:vec})
-	if(pre_class==0):
-		pre_class='Memory'
-	elif(pre_class==2):
-		pre_class='Algorithm'
-	elif(pre_class==1):
-		pre_class='Operation'
-	elif(pre_class==3):
-		pre_class='Concurrency'
-	print "Predicted class is ",pre_class
+# 	word=raw_input("Enter any word from Vocab")
+# 	vec=convert_input_to_vector(word)
+# 	vec=np.array(vec)
+# 	vec=vec.reshape(-1,n_steps,n_feature)
+# 	pre_class=tf.argmax(logits,1).eval(feed_dict={X:vec})
+# 	if(pre_class==0):
+# 		pre_class='Memory'
+# 	elif(pre_class==2):
+# 		pre_class='Algorithm'
+# 	elif(pre_class==1):
+# 		pre_class='Operation'
+# 	elif(pre_class==3):
+# 		pre_class='Concurrency'
+# 	print "Predicted class is ",pre_class
