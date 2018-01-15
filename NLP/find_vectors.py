@@ -107,10 +107,10 @@ with tf.Session() as sess:
 	# train()
 	restore()
 	embeddings=np.array(sess.run(embeddings))
-in_word=str(raw_input("Enter the word"))
+in_word=str(raw_input("Enter the word\n"))
 # print in_word
-vec=embeddings[word2int[in_word]]
 try:
+	vec=embeddings[word2int[in_word]]
 	print "Vector for ",in_word," is \n",vec
 except:
 	print "Entered word is not in vocabulary"
