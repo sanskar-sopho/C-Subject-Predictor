@@ -52,7 +52,7 @@ def extract_code(url,file_name):
 			# print(line)
 			line+=1
 			for string in row.stripped_strings:
-				string=str(unicode(string))
+				string=(unicode(string)).encode('utf-8')
 				# print(string)
 				file.write(string)
 				file.write(' ')
@@ -60,7 +60,7 @@ def extract_code(url,file_name):
 				# for span in spans:
 					# print(span.string)
 			file.write('\n')
-		label_file.write('codes/'+str(file_count-1)+'.txt '+url+'\t'+str(unicode(datetime))+'\n')
+		label_file.write('codes/'+str(file_count-1)+'.txt '+url+'\t'+(unicode(datetime)).encode('utf-8')+'\n')
 		file.close()
 		return datetime
 	except Exception as inst:
