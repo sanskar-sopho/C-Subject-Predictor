@@ -60,7 +60,7 @@ def extract_code(url,file_name):
 				# for span in spans:
 					# print(span.string)
 			file.write('\n')
-		label_file.write('codes/'+str(file_count-1)+'.txt '+url+'\n')
+		label_file.write('codes/'+str(file_count-1)+'.txt '+url+'\t'+str(unicode(datetime))+'\n')
 		file.close()
 		return datetime
 	except Exception as inst:
@@ -97,6 +97,6 @@ def expand_folder(url):
 			else:
 				continue
 
-label_file=open('labels1.txt','a')
+label_file=open('labels.txt','a')
 expand_folder(repo)
 label_file.close()
