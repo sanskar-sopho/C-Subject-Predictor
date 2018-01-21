@@ -1,10 +1,16 @@
 from bs4 import BeautifulSoup
+from selenium import webdriver
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
+from time import sleep
 import urllib2
 import sys
 import os
 
 repo="https://github.com/kennyledet/Algorithm-Implementations"
 base_link='https://github.com'
+
+driver = webdriver.Firefox()
 
 def get_file_count():
 	files=os.listdir('codes/')
@@ -27,6 +33,8 @@ def extract_code(url,file_name):
 	# date=soup.find_all(datetime=True)
 	try:
 		urllib2.urlopen(url)
+		driver.get(url)
+		sleep(6)
 		date=soup.findChildren(['relative-time'])
 		# print("Date is ",date)
 		if(date!=[]):
@@ -55,12 +63,13 @@ def extract_code(url,file_name):
 		label_file.write('codes/'+str(file_count-1)+'.txt '+url+'\n')
 		file.close()
 		return datetime
-	except:
-		print("Error in this file")
+	except Exception as inst:
+		print("Error : ",inst)
 		file_count-=1
 		return -1
 
 def expand_folder(url):
+	driver.get(url)
 	global file_count
 	print "folder : ", url
 	page=urllib2.urlopen(url)
@@ -88,6 +97,6 @@ def expand_folder(url):
 			else:
 				continue
 
-label_file=open('labels.txt','a')
+label_file=open('labels1.txt','a')
 expand_folder(repo)
 label_file.close()
